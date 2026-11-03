@@ -1,0 +1,16 @@
+# Dependencias
+node_modules/
+package-lock.json
+
+# Archivos de entorno (SECRETOS)
+.env
+.env.local
+.env.production
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración de editores
+.vscode/
+.idea/
