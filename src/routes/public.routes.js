@@ -49,7 +49,7 @@ router.get('/horas-ocupadas/:fecha', async (req, res) => {
 });
 
 router.post('/reservar', async (req, res) => {
-  const { nombreNino, fechaNacimiento, nombreTutor, telefono, fecha, hora, motivo, folio } = req.body;
+  const { nombreNino, nombreTutor, telefono, fecha, hora, motivo, folio } = req.body;
 
   if (!nombreNino || !nombreTutor || !telefono || !fecha || !hora) {
     return res.status(400).json({ error: 'Todos los campos básicos de la cita son obligatorios.' });
@@ -152,8 +152,8 @@ router.post('/reservar', async (req, res) => {
       }
     }
 
-    const fNac = fechaNacimiento && fechaNacimiento.trim()
-      ? fechaNacimiento.trim()
+    const fNac = (req.body.fechaNacimiento && typeof req.body.fechaNacimiento === 'string' && req.body.fechaNacimiento.trim())
+      ? req.body.fechaNacimiento.trim()
       : '2023-01-01';
 
     const nuevoPaciente = await client.query(
