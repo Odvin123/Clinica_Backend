@@ -49,10 +49,16 @@ router.get('/horas-ocupadas/:fecha', async (req, res) => {
 });
 
 router.post('/reservar', async (req, res) => {
+  console.log("📥 DATOS RECIBIDOS DEL FRONTEND:", req.body);
+
   const { nombreNino, nombreTutor, telefono, fecha, hora, motivo, folio } = req.body;
+  const fechaNacimiento = req.body.fechaNacimiento || '2023-01-01';
 
   if (!nombreNino || !nombreTutor || !telefono || !fecha || !hora) {
-    return res.status(400).json({ error: 'Todos los campos básicos de la cita son obligatorios.' });
+    return res.status(400).json({ 
+      error: 'Todos los campos básicos de la cita son obligatorios.',
+      detalle: { nombreNino, nombreTutor, telefono, fecha, hora } 
+    });
   }
 
   const soloLetrasRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
@@ -110,10 +116,9 @@ router.post('/reservar', async (req, res) => {
   const client = await db.pool.connect();
 
   try {
-
     const checkFecha = await client.query(`SELECT ($1::date < CURRENT_DATE) AS es_pasada`, [fecha]);
     if (checkFecha.rows[0]?.es_pasada) {
-      return res.status(400).json({ error: 'No es posible agendar una cita en una fecha anterior a hoy (CURRENT_DATE).' });
+      return res.status(400).json({ error: 'No es posible agendar una cita en una fecha anterior a hoy.' });
     }
 
     await client.query('BEGIN');
@@ -130,7 +135,6 @@ router.post('/reservar', async (req, res) => {
     if (tutorResult.rows.length > 0) {
       tutorId = tutorResult.rows[0].id;
     } else {
-
       pinActivacion = Math.floor(1000 + Math.random() * 9000).toString();
       const hashPin = await bcrypt.hash(pinActivacion, 10);
       const telDigitos = telLimpio.replace(/\D/g, '') || Math.floor(Math.random() * 100000);
@@ -152,15 +156,11 @@ router.post('/reservar', async (req, res) => {
       }
     }
 
-    const fNac = (req.body.fechaNacimiento && typeof req.body.fechaNacimiento === 'string' && req.body.fechaNacimiento.trim())
-      ? req.body.fechaNacimiento.trim()
-      : '2023-01-01';
-
     const nuevoPaciente = await client.query(
       `INSERT INTO pacientes (nombre, fecha_nacimiento, tutor_id, triage)
        VALUES ($1, $2, $3, 'VERDE')
        RETURNING id, nombre`,
-      [nombreNino.trim(), fNac, tutorId]
+      [nombreNino.trim(), fechaNacimiento, tutorId]
     );
     const pacienteId = nuevoPaciente.rows[0].id;
 
@@ -190,7 +190,8 @@ router.post('/reservar', async (req, res) => {
     res.status(201).json({
       mensaje: 'Cita reservada exitosamente. Tu cita está pendiente de validación en recepción.',
       cita: nuevaCita.rows[0] || { folio: folioFinal },
-      folio: folioFinal
+      folio: folioFinal,
+      pin: pinActivacion
     });
   } catch (error) {
     await client.query('ROLLBACK');
